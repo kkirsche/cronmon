@@ -3,7 +3,7 @@
 ## Setup
 
 Golang Dependencies:
-```
+```shell
 go get -u -v github.com/gorhill/cronexpr
 go get -u -v github.com/prometheus/client_golang/prometheus
 go get -u -v github.com/jmoiron/sqlx
@@ -16,12 +16,12 @@ go get -u -v github.com/spf13/cobra
 ```
 
 Terminal A:
-```
+```shell
 cockroach start --insecure --store=cronmon --host=localhost
 ```
 
 Terminal B:
-```
+```shell
 cockroach user set evilroach --insecure
 cockroach sql --insecure -e 'CREATE DATABASE cronmon'
 cockroach sql --insecure -e 'GRANT ALL ON DATABASE cronmon TO evilroach'
@@ -35,12 +35,12 @@ cronmon server
 #### cURL
 
 Request:
-```
-~ ❯❯❯ curl -XPOST -H 'Content-Type: application/json' -d '{ "name": "Example Task", "description": "This is an example task for the cronmon README file", "cron_expression": "* * * * *"}' http://localhost:8080/api/v1/tasks
+```shell
+curl -XPOST -H 'Content-Type: application/json' -d '{ "name": "Example Task", "description": "This is an example task for the cronmon README file", "cron_expression": "* * * * *"}' http://localhost:8080/api/v1/tasks
 ```
 
 Response (formatted for readability via jq):
-```
+```json
 {
   "id": 345302135986061313,
   "name": "Example Task",
@@ -72,12 +72,12 @@ Response (formatted for readability via jq):
 #### cURL
 
 Request:
-```
+```shell
 curl -XGET -H 'Content-Type: application/json' http://localhost:8080/api/v1/tasks/345302135986061313
 ```
 
 Response (formatted for readability via jq):
-```
+```json
 {
   "id": 345302135986061300,
   "name": "Example Task",

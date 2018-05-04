@@ -1,30 +1,30 @@
 package apiv1
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/gorhill/cronexpr"
+	"github.com/jmoiron/sqlx"
 	"github.com/kkirsche/cronmon/libdb"
-	// enables the use of database/sql and sqlx
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 
 	"github.com/labstack/echo"
 )
 
 type task struct {
-	ID             string    `json:"id" db:"id"`
-	Name           string    `json:"name" db:"name"`
-	Description    string    `json:"description" db:"description"`
-	CronExpression string    `json:"cron_expression" db:"cron_expression"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	CreatedBy      string    `json:"created_by" db:"created_by"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
-	UpdatedBy      string    `json:"updated_by" db:"updated_by"`
-	LastStarted    time.Time `json:"last_started" db:"last_started"`
-	LastCompleted  time.Time `json:"last_completed" db:"last_completed"`
+	ID             int         `json:"id" db:"id"`
+	Name           string      `json:"name" db:"name"`
+	Description    string      `json:"description" db:"description"`
+	CronExpression string      `json:"cron_expression" db:"cron_expression"`
+	CreatedAt      pq.NullTime `json:"created_at" db:"created_at"`
+	CreatedBy      string      `json:"created_by" db:"created_by"`
+	UpdatedAt      pq.NullTime `json:"updated_at" db:"updated_at"`
+	UpdatedBy      string      `json:"updated_by" db:"updated_by"`
+	LastStarted    pq.NullTime `json:"last_started" db:"last_started"`
+	LastCompleted  pq.NullTime `json:"last_completed" db:"last_completed"`
 }
 
 type message struct {
@@ -46,25 +46,41 @@ func CreateTask(c echo.Context) error {
 		return err
 	}
 
-	t.CreatedAt = time.Now().UTC()
+	t.CreatedAt.Time = time.Now().UTC()
 	t.CreatedBy = "system"
-	t.UpdatedAt = time.Now().UTC()
+	t.UpdatedAt.Time = time.Now().UTC()
 	t.UpdatedBy = "system"
 
-	db, err := sql.Open(libdb.Type, libdb.ConnectionURL)
+	if t.CronExpression == "" || t.Name == "" {
+		return c.JSON(
+			http.StatusBadRequest,
+			message{Message: "missing required task field"})
+	}
+
+	_, err := cronexpr.Parse(t.CronExpression)
+	if err != nil {
+		return c.JSON(
+			http.StatusBadRequest,
+			message{Message: fmt.Sprintf(
+				"cron expression error: %s", err.Error()),
+			})
+	}
+
+	db, err := sqlx.Open(libdb.Type, libdb.ConnectionURL)
 	if err != nil {
 		c.Logger().Errorf("failed to connect to database with error: %s", err.Error())
-		return err
+		return c.JSON(http.StatusInternalServerError, message{Message: "internal server error"})
 	}
 	defer db.Close()
 
 	err = db.QueryRow(`INSERT INTO tasks
 		(name, description, cron_expression, created_at, created_by, updated_at, updated_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-		t.Name, t.Description, t.CronExpression, t.CreatedAt, t.CreatedBy, t.UpdatedAt, t.UpdatedBy).Scan(&t.ID)
+		t.Name, t.Description, t.CronExpression, t.CreatedAt.Time, t.CreatedBy, t.UpdatedAt.Time, t.UpdatedBy,
+	).Scan(&t.ID)
 	if err != nil {
 		c.Logger().Errorf("failed to insert task into database with error: %s", err.Error())
-		return err
+		return c.JSON(http.StatusBadRequest, message{Message: "invalid request"})
 	}
 
 	return c.JSON(http.StatusCreated, t)
@@ -76,8 +92,20 @@ func GetTask(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, message{Message: "Not Found"})
 	}
+
+	db, err := sqlx.Open(libdb.Type, libdb.ConnectionURL)
+	if err != nil {
+		c.Logger().Errorf("failed to connect to database with error: %s", err.Error())
+		return err
+	}
+	defer db.Close()
+
 	t := task{}
-	fmt.Println(id)
+	err = db.Get(&t, "SELECT * FROM tasks WHERE id=$1", id)
+	if err != nil {
+		c.Logger().Errorf("failed to retrieve task with error: %s", err.Error())
+		return c.JSON(http.StatusBadRequest, message{Message: "invalid request"})
+	}
 
 	return c.JSON(http.StatusOK, t)
 }

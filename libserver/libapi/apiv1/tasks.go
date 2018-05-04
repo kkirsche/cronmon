@@ -1,6 +1,7 @@
 package apiv1
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,24 +15,26 @@ import (
 	"github.com/labstack/echo"
 )
 
-type task struct {
-	ID             int         `json:"id" db:"id"`
-	Name           string      `json:"name" db:"name"`
-	Description    string      `json:"description" db:"description"`
-	CronExpression string      `json:"cron_expression" db:"cron_expression"`
-	CreatedAt      pq.NullTime `json:"created_at" db:"created_at"`
-	CreatedBy      string      `json:"created_by" db:"created_by"`
-	UpdatedAt      pq.NullTime `json:"updated_at" db:"updated_at"`
-	UpdatedBy      string      `json:"updated_by" db:"updated_by"`
-	LastStarted    pq.NullTime `json:"last_started" db:"last_started"`
-	LastCompleted  pq.NullTime `json:"last_completed" db:"last_completed"`
+type Task struct {
+	ID                  int            `json:"id" db:"id"`
+	Name                string         `json:"name" db:"name"`
+	Description         string         `json:"description" db:"description"`
+	CronExpression      string         `json:"cron_expression" db:"cron_expression"`
+	CreatedAt           pq.NullTime    `json:"created_at" db:"created_at"`
+	CreatedBy           string         `json:"created_by" db:"created_by"`
+	UpdatedAt           pq.NullTime    `json:"updated_at" db:"updated_at"`
+	UpdatedBy           string         `json:"updated_by" db:"updated_by"`
+	LastStarted         pq.NullTime    `json:"last_started_at_time" db:"last_started_at_time"`
+	LastStartedByHost   sql.NullString `json:"last_started_by_host" db:"last_started_by_host"`
+	LastCompleted       pq.NullTime    `json:"last_completed_at_time" db:"last_completed_at_time"`
+	LastCompletedByHost sql.NullString `json:"last_completed_by_host" db:"last_completed_by_host"`
 }
 
 type message struct {
 	Message string `json:"message"`
 }
 
-func validateTask(t task) bool {
+func validateTask(t Task) bool {
 	if t.Name == "" || t.UpdatedBy == "" || t.CreatedBy == "" {
 		return false
 	}
@@ -41,7 +44,7 @@ func validateTask(t task) bool {
 
 // CreateTask is used to create a new task object
 func CreateTask(c echo.Context) error {
-	t := task{}
+	t := Task{}
 	if err := c.Bind(&t); err != nil {
 		return err
 	}
@@ -100,7 +103,7 @@ func GetTask(c echo.Context) error {
 	}
 	defer db.Close()
 
-	t := task{}
+	t := Task{}
 	err = db.Get(&t, "SELECT * FROM tasks WHERE id=$1", id)
 	if err != nil {
 		c.Logger().Errorf("failed to retrieve task with error: %s", err.Error())
@@ -112,13 +115,26 @@ func GetTask(c echo.Context) error {
 
 // GetTasks is used to retrieve all tasks (or at least a page of tasks)
 func GetTasks(c echo.Context) error {
-	tasks := []task{task{}}
+	db, err := sqlx.Open(libdb.Type, libdb.ConnectionURL)
+	if err != nil {
+		c.Logger().Errorf("failed to connect to database with error: %s", err.Error())
+		return err
+	}
+	defer db.Close()
+
+	tasks := []Task{}
+	err = db.Select(&tasks, "SELECT * FROM tasks ORDER BY name")
+	if err != nil {
+		c.Logger().Errorf("failed to retrieve list of tasks with err: %s", err.Error())
+		return err
+	}
+
 	return c.JSON(http.StatusOK, tasks)
 }
 
 // UpdateTask is used to update an existing task object
 func UpdateTask(c echo.Context) error {
-	t := new(task)
+	t := new(Task)
 	if err := c.Bind(t); err != nil {
 		return err
 	}

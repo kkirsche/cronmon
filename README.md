@@ -103,3 +103,51 @@ Response (formatted for readability via jq):
   }
 }
 ```
+
+### Get all tasks
+
+#### cURL
+
+Request:
+```
+curl -XGET -H 'Content-Type: application/json' http://localhost:8080/api/v1/tasks
+```
+
+
+Response (formatted for readability via jq):
+```
+[
+  {
+    "id": 345308099987341300,
+    "name": "Example Task",
+    "description": "This is an example task for the cronmon README file",
+    "cron_expression": "* * * * *",
+    "created_at": {
+      "Time": "2018-05-04T16:07:49.177496Z",
+      "Valid": true
+    },
+    "created_by": "system",
+    "updated_at": {
+      "Time": "2018-05-04T16:07:49.177499Z",
+      "Valid": true
+    },
+    "updated_by": "system",
+    "last_started_at_time": {
+      "Time": "0001-01-01T00:00:00Z",
+      "Valid": false
+    },
+    "last_started_by_host": {
+      "String": "",
+      "Valid": false
+    },
+    "last_completed_at_time": {
+      "Time": "0001-01-01T00:00:00Z",
+      "Valid": false
+    },
+    "last_completed_by_host": {
+      "String": "",
+      "Valid": false
+    }
+  }
+]
+```

@@ -20,14 +20,16 @@ func CreateDBSchema() {
   CREATE TABLE IF NOT EXISTS tasks (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
+    description TEXT NOT NULL,
     cron_expression VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_by VARCHAR(255) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_by VARCHAR(255) NOT NULL,
-    last_started TIMESTAMP WITH TIME ZONE,
-    last_completed TIMESTAMP WITH TIME ZONE
+    last_started_at_time TIMESTAMP WITH TIME ZONE,
+		last_started_by_host VARCHAR(255),
+    last_completed_at_time TIMESTAMP WITH TIME ZONE,
+		last_completed_by_host VARCHAR(255)
   )`
 
 	db.MustExec(schema)
